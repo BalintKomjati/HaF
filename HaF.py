@@ -4,10 +4,9 @@ import pandas as pd
 import gpxpy
 
 
-st.header('🥾 & 🪂')
+st.header('🥾 🪂')
 
 'Welcome to the site of'
-
 st.title('Hike and Fly Records')
 
 uploaded_file = st.file_uploader("Choose your tracklog file",
