@@ -2,7 +2,10 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import gpxpy
+from google.cloud import firestore
 
+# Authenticate to Firestore with the JSON account key.
+db = firestore.Client.from_service_account_json(".streamlit/firebase-hafr-key.json")
 
 st.header('🥾 🪂')
 
@@ -28,3 +31,10 @@ if uploaded_file is not None:
     df = pd.DataFrame.from_records(points)
 
     st.map(df)
+
+#this not yet works
+    ref_uploads = db.collection("uploads").document("test")
+    ref_uploads.set({
+        "when": 'now',
+        "what": 'gpx file'
+    })
