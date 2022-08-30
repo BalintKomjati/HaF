@@ -2,14 +2,24 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import gpxpy
-from google.cloud import firestore
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
 
-# Authenticate to Firestore with the JSON account key.
-db = firestore.Client.from_service_account_json(".streamlit/firebase-hafr-key.json")
+# Authenticate to firebase with the JSON account key.
+if not firebase_admin._apps:
+    cred = credentials.Certificate(".streamlit/firebase-hafr-key.json")
+    default_app = firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://hafr-e2128-default-rtdb.europe-west1.firebasedatabase.app/'
+    })
 
-st.header('🥾 🪂')
+# create reference to the root of the database
+ref = db.reference('/')
 
 'Welcome to the site of'
+
+st.header('⛰️ 🥾 🪂 🏆')
+
 st.title('Hike and Fly Records')
 
 uploaded_file = st.file_uploader("Choose your tracklog file",
@@ -30,11 +40,14 @@ if uploaded_file is not None:
             })
     df = pd.DataFrame.from_records(points)
 
+    #visualize
     st.map(df)
 
-#this not yet works
-    ref_uploads = db.collection("uploads").document("test")
-    ref_uploads.set({
-        "when": 'now',
-        "what": 'gpx file'
-    })
+    #timestamp is not json convertible
+    df['time'] = df['time'].astype(str)
+    
+    #convert to dictionary (only way to upload to firebase)
+    d2 = df.to_dict()
+
+    #save to db 
+    ref.push(d2)
