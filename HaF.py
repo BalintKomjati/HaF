@@ -2,19 +2,13 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import gpxpy
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import db
+from google.cloud import firestore
+import json
+from google.oauth2 import service_account
 
-# Authenticate to firebase with the JSON account key.
-if not firebase_admin._apps:
-    cred = credentials.Certificate(".streamlit/firebase-hafr-key.json")
-    default_app = firebase_admin.initialize_app(cred, {
-        'databaseURL': 'https://hafr-e2128-default-rtdb.europe-west1.firebasedatabase.app/'
-    })
-
-# create reference to the root of the database
-ref = db.reference('/')
+key_dict = json.loads(st.secrets["textkey"])
+creds = service_account.Credentials.from_service_account_info(key_dict)
+db = firestore.Client(credentials=creds, project="hafr-e2128")
 
 'Welcome to the site of'
 
@@ -47,7 +41,8 @@ if uploaded_file is not None:
     df['time'] = df['time'].astype(str)
     
     #convert to dictionary (only way to upload to firebase)
-    d2 = df.to_dict()
+    d2 = df.to_dict(orient = 'records')
 
-    #save to db 
-    ref.push(d2)
+    #save to db  
+    doc_ref = db.collection("gpx")
+    list(map(lambda x: doc_ref.add(x), d2))

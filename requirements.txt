@@ -2,4 +2,6 @@ streamlit
 numpy
 pandas
 gpxpy
-firebase-admin
+google.cloud
+json
+google.oauth2
