@@ -3,5 +3,4 @@ numpy
 pandas
 gpxpy
 google.cloud
-json
 google.oauth2
