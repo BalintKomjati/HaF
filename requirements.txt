@@ -1,6 +1,14 @@
 streamlit
 numpy
 pandas
+geopandas
+json
+os
 gpxpy
 google.cloud
-google-oauth
+google-oauth2
+leafmap
+folium
+pydeck
+geopy
+string
