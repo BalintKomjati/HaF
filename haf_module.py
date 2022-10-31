@@ -37,7 +37,7 @@ def create_basis_map():
     m.add_xyz_service("xyz.OpenTopoMap")
     return(m)
 
-def get_task_cylinders(db_race,cylinder_name):
+def download_task_cylinders(db_race,cylinder_name):
     """Get coordinates and radius parameters of the task cylinders from firestore"""
 
     cylinder = db_race.collection('task').document(cylinder_name).get().to_dict()
@@ -68,6 +68,24 @@ def add_task_to_map(m,startcylinder, turnpoint):
 
     return(m)
 
+def download_task_results(db_race):
+    """Get the task's current results list from firestore"""
+
+    db_results = list(db_race.collection('results').stream())
+    dict_results = list(map(lambda x: x.to_dict(), db_results))
+    df_results = pd.DataFrame(dict_results)
+    df_results = df_results[['Athlete', 'Date', 'Time up', "Time down", "Start time", "timestamp"]]
+    #df_results.columns =    ['Athlete', 'Date', 'Time up', 'Time down', 'Date of Upload']
+
+    #add ranking and make it as the 1st col
+    df_results = df_results.sort_values("Time up")
+    df_results['Ranking'] = df_results.index + 1
+    cols = df_results.columns.tolist()
+    cols = cols[-1:] + cols[:-1]
+    df_results = df_results[cols].sort_values("Ranking")
+
+    return(df_results)
+
 def get_task_bounds(startcylinder, turnpoint):
     """Calculate the bbox of the task to fit the map accordingly"""
     north = max([turnpoint.location[0],startcylinder.location[0]])
@@ -91,8 +109,8 @@ def get_gpx_bounds(pdf):
     east = max(bounds["maxx"])
     north = max(bounds["maxy"])
 
-    bbox = [[south, east], [north, west]]
-
+    bbox = [[south, east], [north, west]] #might be more elegant with gdf.total_bounds()
+    
     return(bbox)
 
 def gpx_to_df(gpx):
@@ -139,9 +157,6 @@ def identify_up_and_down_segments(pdf, startcylinder, turnpoint):
     pdf['segment_down'] = (pdf.idx > down_start) & (pdf.idx < down_end)
 
     return(pdf)
-
-#########################
-
 
 def is_inside_cylinder(df, cylinder_cord, cylinder_radius):
     """Identify if GPS record is inside cylinder"""

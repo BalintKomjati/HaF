@@ -46,39 +46,53 @@ def app():
     st.subheader('⛰️ 🥾 🪂 🏆')
     st.text('')
 
-    #%% create map
+    #%% create map and download task results
+    df_results = haf.download_task_results(db_race)
+
     m = haf.create_basis_map()
-    startcylinder = haf.get_task_cylinders(db_race,"startcylinder")
-    turnpoint = haf.get_task_cylinders(db_race,"turnpoint")
+    startcylinder = haf.download_task_cylinders(db_race,"startcylinder")
+    turnpoint =     haf.download_task_cylinders(db_race,"turnpoint")
     m = haf.add_task_to_map(m, startcylinder, turnpoint)
     m.fit_bounds(haf.get_task_bounds(startcylinder, turnpoint))
 
+    #TODO add to frontend the site info: name, elevation, distance, avg grade, elev min max
+
     #%% frontend gpx uploader
-    gpx_file = st.file_uploader(label = 'Upload you gpx tracklog for evaluation:', type = 'gpx')
+    with st.form(key='upload_gpx'):
+        gpx_file = st.file_uploader(label = 'Upload your gpx tracklog for evaluation:', type = 'gpx')
+        athlete_name = st.text_input("Athlete's name")
+        st.form_submit_button('Submit')
 
     #%% actions if user uploads gpx file
-    if gpx_file is not None:
+    while gpx_file is not None: #"while" instead of "if" to apply "break" during validation down below
 
         #%% read gpx file and add to map
         gpx = gpxpy.parse(gpx_file)
         pdf = haf.gpx_to_df(gpx)
         pdf_to_antpath = pdf[["latitude","longitude"]].values.tolist()
         AntPath(pdf_to_antpath, color='blue', weight=4.5, opacity=.5, fitBounds = True).add_to(m)
+        m.fit_bounds(haf.get_gpx_bounds(pdf)) 
 
         #%% validate user gpx
 
         pdf = haf.identify_up_and_down_segments(pdf, startcylinder, turnpoint)
 
-        #check if track crosses start and exit cylinders
+        #check if the competition task was executed properly 
         if pdf.inside_start.sum() < 1:
             st.error("Tracklog does not cross the start cylinder!")
+            break
         if pdf.inside_tp.sum() < 1:
-            st.error("Tracklog does not corss the turnpoint!")
-
-        #check if segment up is finished before segment down starts
+            st.error("Tracklog does not cross the turnpoint!")
+            break
+        if pdf.segment_down.sum() == 0:
+            st.error("Trackloig does not go back to the start cylinder!")
+            break
+        if pdf.segment_up.sum() == 0:
+            st.error("Running up does not start within the start cylinder!")
+            break
         if pdf.query("segment_up").idx.max() > pdf.query("segment_down").idx.min():
             st.error('Order of tagging the cylinders is incorrect')
-
+            break
 
         #%% Extract results info from gpx
 
@@ -86,19 +100,30 @@ def app():
         time_up   = pdf[pdf['segment_up'  ] == True].time.max() - pdf[pdf['segment_up'  ] == True].time.min()
         time_down = pdf[pdf['segment_down'] == True].time.max() - pdf[pdf['segment_down'] == True].time.min()
 
-        # site info: name, map, elevation, distance, avg grade, elev min max
-        # TODO add ranking and climb rate
-        df = pd.DataFrame({
-            "Athlete" : ["Earl"],
-            "Date" : [pdf.time[1].strftime('%Y.%m.%d')],
+        result_new = {
+            "Athlete" : athlete_name,
+            "Date" : pdf.time[1].strftime('%Y.%m.%d'),
             "Time up" :   haf.strfdelta(time_up,   '%H:%M:%S'),
-            "Time down" : haf.strfdelta(time_down, '%H:%M:%S')
-            })
-  
-        st.dataframe(df, use_container_width = True) 
+            "Time down" : haf.strfdelta(time_down, '%H:%M:%S'),
+            "Start time": pdf.query("segment_up").time.min() #for validation
+            #gpx_file_reference ---for validation 
+            #climb rate ---for info
+            }
 
-        m.fit_bounds(haf.get_gpx_bounds(pdf)) #might be more elegant with gdf.total_bounds()
+        #upload new result to firestore
+        db_result_new = db_race.collection('results').document()
+        db_result_new.set(result_new)
+        db_result_new.update({
+            u'timestamp': firestore.SERVER_TIMESTAMP
+        })
 
+        #update results df
+        df_results = haf.download_task_results(db_race)
+
+        gpx_file = None #exiting the while loop
+
+    #%% display outputs (end of 'while gpx_file is not None')
+    st.dataframe(df_results.iloc[:,0:5], use_container_width = True) 
     m.to_streamlit()
-
+#%% run app
 app()
