@@ -68,21 +68,31 @@ def add_task_to_map(m,startcylinder, turnpoint):
 
     return(m)
 
+def upload_new_task_result(db_race,result_new):
+    """Upload the new task result received from the user to firestore"""
+    db_result_new = db_race.collection('results').document()
+    r1 = db_result_new.set(result_new)
+    r2 = db_result_new.update({
+        u'timestamp': firestore.SERVER_TIMESTAMP
+    })
+    return([r1,r2])
+
+
 def download_task_results(db_race):
     """Get the task's current results list from firestore"""
 
     db_results = list(db_race.collection('results').stream())
     dict_results = list(map(lambda x: x.to_dict(), db_results))
     df_results = pd.DataFrame(dict_results)
-    df_results = df_results[['Athlete', 'Date', 'Time up', "Time down", "Start time", "timestamp"]]
+    df_results = df_results[['athlete', 'date', 'time_up', "time_down", "start_time", "timestamp"]]
     #df_results.columns =    ['Athlete', 'Date', 'Time up', 'Time down', 'Date of Upload']
 
     #add ranking and make it as the 1st col
-    df_results = df_results.sort_values("Time up")
-    df_results['Ranking'] = df_results.index + 1
+    df_results = df_results.sort_values("time_up")
+    df_results['ranking'] = df_results.index + 1
     cols = df_results.columns.tolist()
     cols = cols[-1:] + cols[:-1]
-    df_results = df_results[cols].sort_values("Ranking")
+    df_results = df_results[cols].sort_values("ranking")
 
     return(df_results)
 

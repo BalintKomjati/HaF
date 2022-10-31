@@ -101,21 +101,15 @@ def app():
         time_down = pdf[pdf['segment_down'] == True].time.max() - pdf[pdf['segment_down'] == True].time.min()
 
         result_new = {
-            "Athlete" : athlete_name,
-            "Date" : pdf.time[1].strftime('%Y.%m.%d'),
-            "Time up" :   haf.strfdelta(time_up,   '%H:%M:%S'),
-            "Time down" : haf.strfdelta(time_down, '%H:%M:%S'),
-            "Start time": pdf.query("segment_up").time.min() #for validation
-            #gpx_file_reference ---for validation 
-            #climb rate ---for info
+            "athlete" : athlete_name,
+            "date" : pdf.time[1].strftime('%Y.%m.%d'),
+            "time_up" :   haf.strfdelta(time_up,   '%H:%M:%S'),
+            "time_down" : haf.strfdelta(time_down, '%H:%M:%S'),
+            "start_time": pdf.query("segment_up").time.min() #for validation
             }
 
         #upload new result to firestore
-        db_result_new = db_race.collection('results').document()
-        db_result_new.set(result_new)
-        db_result_new.update({
-            u'timestamp': firestore.SERVER_TIMESTAMP
-        })
+        resp = haf.upload_new_task_result(db_race,result_new)
 
         #update results df
         df_results = haf.download_task_results(db_race)
@@ -123,6 +117,7 @@ def app():
         gpx_file = None #exiting the while loop
 
     #%% display outputs (end of 'while gpx_file is not None')
+    df_results.columns = ['Ranking','Athlete', 'Date', 'Time up', 'Time down', "Start time", "Time of submit"]
     st.dataframe(df_results.iloc[:,0:5], use_container_width = True) 
     m.to_streamlit()
 #%% run app
