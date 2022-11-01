@@ -5,8 +5,10 @@ import geopy.distance
 import gpxpy
 import json
 import os
-from google.cloud import firestore
-from google.oauth2 import service_account
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import storage
+from datetime import datetime
 from numpy import mean, min, max
 import leafmap.foliumap as leafmap
 from folium import Marker, Circle
@@ -14,15 +16,20 @@ from folium.plugins import AntPath, MeasureControl
 from folium.features import CustomIcon
 from string import Template
 
-def connect_firestore():
-    """connect to the app's firestore database"""
+def initialize_connection_to_firebase():
+    """connect to the app's firebase database"""
     if os.environ.get("COMPUTERNAME", "REMOTE") == 'DESKTOP-1UKNJQ5':
-        db = firestore.Client.from_service_account_json(".streamlit/firebase-hafr-key.json")
-    else:
-        key_dict = json.loads(st.secrets["textkey"])
-        creds = service_account.Credentials.from_service_account_info(key_dict)
-        db = firestore.Client(credentials=creds, project="hafr-e2128")
-    return(db)
+        cred = credentials.Certificate('.streamlit/firebase-hafr-key.json')
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(cred, {
+                'storageBucket': 'hafr-e2128.appspot.com'
+            })
+
+    #else: #FIXME!!!
+        # key_dict = json.loads(st.secrets["textkey"])
+        # creds = service_account.Credentials.from_service_account_info(key_dict)
+        # db = firestore.Client(credentials=creds, project="hafr-e2128")
+    return(firebase_admin.get_app())
 
 def create_basis_map():
     """Define a stanard map used for visualizing the task and track later"""
@@ -71,12 +78,17 @@ def add_task_to_map(m,startcylinder, turnpoint):
 def upload_new_task_result(db_race,result_new):
     """Upload the new task result received from the user to firestore"""
     db_result_new = db_race.collection('results').document()
-    r1 = db_result_new.set(result_new)
-    r2 = db_result_new.update({
-        u'timestamp': firestore.SERVER_TIMESTAMP
-    })
-    return([r1,r2])
+    r = db_result_new.set(result_new)
+    return(r)
 
+def upload_new_gpx(bucket, ts, gpx_file):
+    """Upload the new gpx file received from the user to firebase storage"""
+    gpx_file.seek(0)
+    blob = bucket.blob(ts.isoformat())
+    r = blob.upload_from_file(gpx_file)
+    #TODO ts should be added only to the object metadata 
+    # (=unique identifier for the upload / completion of the task -- e.g. to store pics as well)
+    return(r)
 
 def download_task_results(db_race):
     """Get the task's current results list from firestore"""
@@ -84,11 +96,16 @@ def download_task_results(db_race):
     db_results = list(db_race.collection('results').stream())
     dict_results = list(map(lambda x: x.to_dict(), db_results))
     df_results = pd.DataFrame(dict_results)
-    df_results = df_results[['athlete', 'date', 'time_up', "time_down", "start_time", "timestamp"]]
+    cn = ['athlete', 'date', 'time_up', "time_down", "start_time", "timestamp"]
+    if len(df_results) == 0: #no result have been submitted ever
+        df_results = pd.DataFrame(columns=cn)
+    else:
+        df_results = df_results[cn]
     #df_results.columns =    ['Athlete', 'Date', 'Time up', 'Time down', 'Date of Upload']
 
     #add ranking and make it as the 1st col
     df_results = df_results.sort_values("time_up")
+    df_results = df_results.reset_index(drop=True)
     df_results['ranking'] = df_results.index + 1
     cols = df_results.columns.tolist()
     cols = cols[-1:] + cols[:-1]
@@ -109,10 +126,10 @@ def get_task_bounds(startcylinder, turnpoint):
 
 def get_gpx_bounds(pdf):
     """Calculate the bbox of the gpx tracklog to fit the map accordingly"""
-    gdf = gpd.GeoDataFrame( pdf, 
-                            geometry=gpd.points_from_xy(pdf.longitude, pdf.latitude),
-                            crs="EPSG:4326"
-                            )
+    gdf = gpd.GeoDataFrame(pdf, 
+                           geometry=gpd.points_from_xy(pdf.longitude, pdf.latitude),
+                           crs="EPSG:4326"
+                           ) 
     bounds = gdf.to_crs(epsg="4326").bounds
     west = min(bounds["minx"])
     south = min(bounds["miny"])
