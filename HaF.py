@@ -75,7 +75,7 @@ def app():
         AntPath(pdf_to_antpath, color='blue', weight=4.5, opacity=.5, fitBounds = True).add_to(m)
         m.fit_bounds(haf.get_gpx_bounds(pdf)) 
 
-        #%% Validate user gpx
+        #%% Validate uploaded gpx
 
         pdf = haf.identify_up_and_down_segments(pdf, startcylinder, turnpoint)
 
@@ -113,10 +113,18 @@ def app():
             "timestamp" : ts #gpx file reference
             }
 
+        #%% validate new result
+        if len(df_results[(df_results.athlete    == result_new['athlete']) & 
+                        (df_results.start_time == result_new['start_time'])] ) > 0:
+                        st.error('Result already submitted for the same athlete and time')
+                        break
+
+        #%% upload to firebase
+
         #upload new result to firestore
         r1 = haf.upload_new_task_result(db_race,result_new)
         #save gpx file of new result
-        #r2 = haf.upload_new_gpx(bucket, ts, gpx_file)
+        r2 = haf.upload_new_gpx(bucket, ts, gpx_file)
 
         #update results df
         df_results = haf.download_task_results(db_race)
