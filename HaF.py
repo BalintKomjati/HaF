@@ -77,6 +77,11 @@ def app():
 
         #%% Validate uploaded gpx
 
+        #check if name was supplied with the gpx
+        if not athlete_name:
+            st.error("You cannot leave the athlete's name blank")
+            break
+
         pdf = haf.identify_up_and_down_segments(pdf, startcylinder, turnpoint)
 
         #check if the competition task was executed properly 
@@ -102,22 +107,32 @@ def app():
         time_up   = pdf[pdf['segment_up'  ] == True].time.max() - pdf[pdf['segment_up'  ] == True].time.min()
         time_down = pdf[pdf['segment_down'] == True].time.max() - pdf[pdf['segment_down'] == True].time.min()
 
+        # calculate other result components
         ts = datetime.now()
+        idx_max = pdf.query("segment_down").idx.max()
+        finish_coords = str(pdf.query('idx == @idx_max').longitude.item()) + ',' + str(pdf.query('idx == @idx_max').latitude.item())
 
         result_new = {
             "athlete" : athlete_name,
             "date" : pdf.time[1].strftime('%Y.%m.%d'),
             "time_up" :   haf.strfdelta(time_up,   '%H:%M:%S'),
             "time_down" : haf.strfdelta(time_down, '%H:%M:%S'),
-            "start_time": pdf.query("segment_up").time.min(), #for validation
+            "start_time" : pdf.query("segment_up").time.min(),      #for validation
+            "finish_time" :  pdf.query("segment_down").time.max(),  #for validation
+            "finish_coords" : finish_coords,                        #for validation
             "timestamp" : ts #gpx file reference
             }
 
         #%% validate new result
         if len(df_results[(df_results.athlete    == result_new['athlete']) & 
-                        (df_results.start_time == result_new['start_time'])] ) > 0:
-                        st.error('Result already submitted for the same athlete and time')
-                        break
+                          (df_results.start_time == result_new['start_time'])] ) > 0:
+                          st.error('Result already submitted for the same athlete and time')
+                          break
+
+        if len(df_results[(df_results.time_up     == result_new['time_up']) & 
+                          (df_results.finish_coords == result_new['finish_coords'])] ) > 0:
+                          st.error('This tracklog have already been uploaded')
+                          break
 
         #%% upload to firebase
 
@@ -132,7 +147,8 @@ def app():
         gpx_file = None #exiting the while loop
 
     #%% Display outputs (end of 'while gpx_file is not None')
-    df_results.columns = ['Ranking','Athlete', 'Date', 'Time up', 'Time down', "Start time", "Time of submit"]
+    df_results.columns = ['Ranking','Athlete', 'Date', 'Time up', 'Time down', 
+                          "Start Time", "Finish Time", "Finish Coordinates", "Time of submit"]  # type: ignore
     st.dataframe(df_results.iloc[:,0:5], use_container_width = True) 
     m.to_streamlit()
 #%% Run app

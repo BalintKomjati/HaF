@@ -96,12 +96,12 @@ def download_task_results(db_race):
     db_results = list(db_race.collection('results').stream())
     dict_results = list(map(lambda x: x.to_dict(), db_results))
     df_results = pd.DataFrame(dict_results)
-    cn = ['athlete', 'date', 'time_up', "time_down", "start_time", "timestamp"]
-    if len(df_results) == 0: #no result have been submitted ever
+    cn = ['athlete', 'date', 'time_up', "time_down", "start_time", "finish_time", "finish_coords", "timestamp"]
+    #create blank dataframe if no result have been submitted ever to avoid errors downstream
+    if len(df_results) == 0: 
         df_results = pd.DataFrame(columns=cn)
     else:
         df_results = df_results[cn]
-    #df_results.columns =    ['Athlete', 'Date', 'Time up', 'Time down', 'Date of Upload']
 
     #add ranking and make it as the 1st col
     df_results = df_results.sort_values("time_up")

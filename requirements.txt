@@ -5,8 +5,8 @@ geopandas
 json
 os
 gpxpy
-google.cloud
-google-oauth2
+firebase_admin
+datetime
 leafmap
 folium
 pydeck
