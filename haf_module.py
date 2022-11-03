@@ -20,15 +20,16 @@ def initialize_connection_to_firebase():
     """connect to the app's firebase database"""
     if os.environ.get("COMPUTERNAME", "REMOTE") == 'DESKTOP-1UKNJQ5':
         cred = credentials.Certificate('.streamlit/firebase-hafr-key.json')
-        if not firebase_admin._apps:
-            firebase_admin.initialize_app(cred, {
-                'storageBucket': 'hafr-e2128.appspot.com'
-            })
 
-    #else: #FIXME!!!
-        # key_dict = json.loads(st.secrets["textkey"])
-        # creds = service_account.Credentials.from_service_account_info(key_dict)
-        # db = firestore.Client(credentials=creds, project="hafr-e2128")
+    else:
+        key_dict = json.loads(st.secrets["textkey"])
+        cred = credentials.Certificate(key_dict)
+
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(cred, {
+            'storageBucket': 'hafr-e2128.appspot.com'
+        })
+
     return(firebase_admin.get_app())
 
 def create_basis_map():
