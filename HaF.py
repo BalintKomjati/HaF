@@ -69,7 +69,7 @@ def app():
     while gpx_file is not None: #"while" instead of "if" to apply "break" during validation down below
 
         #%% Read gpx file and add to map
-        gpx = gpxpy.parse(gpx_file)
+        gpx = gpxpy.parse(gpx_file)  # type: ignore
         pdf = haf.gpx_to_df(gpx)
         pdf_to_antpath = pdf[["latitude","longitude"]].values.tolist()
         AntPath(pdf_to_antpath, color='blue', weight=4.5, opacity=.5, fitBounds = True).add_to(m)
@@ -143,6 +143,8 @@ def app():
 
         #update results df
         df_results = haf.download_task_results(db_race)
+
+        st.success("Successfull upload! Your result was added to the rankings.")
 
         gpx_file = None #exiting the while loop
 

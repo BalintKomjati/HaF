@@ -129,8 +129,8 @@ def get_gpx_bounds(pdf):
     gdf = gpd.GeoDataFrame(pdf, 
                            geometry=gpd.points_from_xy(pdf.longitude, pdf.latitude),
                            crs="EPSG:4326"
-                           ) 
-    bounds = gdf.to_crs(epsg="4326").bounds
+                           )   # type: ignore
+    bounds = gdf.to_crs(epsg="4326").bounds # type: ignore
     west = min(bounds["minx"])
     south = min(bounds["miny"])
     east = max(bounds["maxx"])
