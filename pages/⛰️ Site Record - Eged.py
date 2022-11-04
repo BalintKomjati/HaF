@@ -23,29 +23,11 @@ haf.initialize_connection_to_firebase()
 db_race = firestore.client().collection('races').document('eged')
 bucket = storage.bucket()
 
-#%% Frontend sidebar
-st.set_page_config(layout="wide")
-
-st.sidebar.title("About")
-
-st.sidebar.info(
-    """
-    Website for Hike-and-fly records.
-    """
-)
-
-st.sidebar.info(
-    """
-    App by [Bálint Komjáti](https://balint-komjati.hu)
-    """
-)
-
 #%% Main app
 def app():
-    #%% Frontend headers
-    st.subheader('Welcome to the site of')   
-    st.title('Hike and Fly Records')    
-    st.subheader('⛰️ 🥾 🪂 🏆')
+    #%% Frontend headers 
+    st.set_page_config(layout="wide")
+    st.title('Hike-and-Fly Site Records - Eged')    
     st.text('')
 
     #%% Create map and download task results
